@@ -1,0 +1,101 @@
+# .github/workflows/ci.yml
+
+name: CI Pipeline for Node.js and React App
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build_and_test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    # PostgreSQL サービスコンテナを起動 (バックエンドテスト用)
+    services:
+      postgres:
+        image: postgres:14 # 必要に応じてバージョンを指定
+        env:
+          POSTGRES_USER: nodeman      # テスト用ユーザー名 (任意)
+          POSTGRES_PASSWORD: password # テスト用パスワード (任意)
+          POSTGRES_DB: nodeplay  # テスト用データベース名 (任意)
+        ports:
+          - 5432:5432 # ホスト(Runner)の5432をコンテナの5432にマッピング
+        # オプション: サービスが利用可能になるまで待機するヘルスチェック
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    strategy:
+      matrix:
+        node-version: ['23.11.0'] # テストするNode.jsバージョン (必要に応じて変更・追加)
+
+    steps:
+      # 1. リポジトリのコードをチェックアウト
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Node.js環境のセットアップ (共通)
+      #    キャッシュは各ステップで指定するため、ここでは指定しないか、
+      #    最初のステップで代表パスを指定しても良い
+      - name: Set up Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          # cache: 'npm' # キャッシュは個別指定推奨
+
+      # --- Backend Steps (nodeplay) ---
+      - name: Install backend dependencies
+        uses: actions/setup-node@v4 # ここでキャッシュ指定も可能
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: nodeplay/package-lock.json # ★重要: バックエンドのロックファイルパス
+        run: |
+          cd nodeplay
+          npm ci
+        working-directory: ./nodeplay # working-directoryでも可
+
+      - name: Run backend tests
+        # ★重要: バックエンドのテストがDBサービスを参照するように環境変数を設定
+        env:
+          # PostgreSQLサービスコンテナへの接続情報
+          # 注意: 'localhost' またはサービス名 'postgres' をホストとして使用
+          #       ポートはマッピングしたポート (5432)
+          PGHOST: localhost # または postgres (サービス名)
+          PGPORT: 5432
+          PGUSER: nodeman
+          PGDATABASE: nodeplay
+          PGPASSWORD: password
+          # 必要に応じてNODE_ENVなど他の環境変数も設定
+          NODE_ENV: test
+        working-directory: ./nodeplay
+        run: npm test --if-present # testスクリプトがあれば実行
+
+      # --- Frontend Steps (reactplay/reactplay) ---
+      - name: Install frontend dependencies
+        uses: actions/setup-node@v4 # ここでキャッシュ指定も可能
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: reactplay/reactplay/package-lock.json # ★重要: フロントエンドのロックファイルパス
+        run: npm ci
+        working-directory: ./reactplay/reactplay
+
+      - name: Run frontend tests
+        env:
+          CI: true # Create React App のテストを非Watchモードで実行
+        working-directory: ./reactplay/reactplay
+        run: npm test --if-present
+
+      - name: Build frontend
+        env:
+          # ★重要: フロントエンドビルド時に参照するAPI URLを設定
+          # ここでは固定値の例。実際には環境変数や設定ファイルで管理推奨
+          REACT_APP_API_BASE_URL: http://54.197.120.188:3001/ # ビルド時の例 (デプロイ時は変更)
+        working-directory: ./reactplay/reactplay
+        run: npm run build --if-present
