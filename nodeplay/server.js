@@ -30,13 +30,14 @@ app.get('/sending_user', async (req, res) => {
 // POST: 新規ユーザーを追加
 app.post('/insert_user', async (req, res) => {
   const { username, age, gender, birth, addr, phone, mail, password } = req.body;
+  console.log(birth)
   // 簡単なバリデーション (本来はもっと厳密に)
   if (!username || !mail || !password) {
     return res.status(400).json({ error: 'Username, mail, and password are required' });
   }
   try {
     const result = await pool.query(
-      'INSERT INTO users (username, age, gender, birth, addr, phone, mail, password) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+      'INSERT INTO users (username, age, gender, birth_date, address, phone, email, password) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
       [username, age || null, gender || null, birth || null, addr || null, phone || null, mail, password]
     );
     console.log('User inserted:', result.rows[0]);
