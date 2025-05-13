@@ -3,11 +3,14 @@ const { Pool } = require('pg');
 const cors = require('cors');
 
 const app = express();
-const port = 3001; // Reactの開発サーバー(通常3000)と違うポートにする
+const port = process.env.PORT || 3001; 
 
 // PostgreSQL接続設定 (環境変数から読み込むのがベストプラクティス)
+const { Pool } = require('pg');
+const connectionString = process.env.DATABASE_URL || 'postgresql://nodeman:password@localhost:5432/nodeplay_default'; // 環境変数またはデフォルト値
+
 const pool = new Pool({
-  connectionString: 'postgresql://nodeman:password@localhost/nodeplay',
+  connectionString: connectionString,
 });
 
 // ミドルウェアの設定
