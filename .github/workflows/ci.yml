@@ -151,7 +151,7 @@ jobs:
         uses: easingthemes/ssh-deploy@v5.0.0
         with:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          ARGS: "-rlgoDzvc --delete"  # ★汎用的なrsyncオプションのみにする
+          ARGS: "-rlgoDzvc --delete"  
           SOURCE: "nodeplay/"
           REMOTE_HOST: ${{ secrets.SSH_HOST }}
           REMOTE_USER: ${{ secrets.SSH_USERNAME }}
