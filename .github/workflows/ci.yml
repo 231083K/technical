@@ -89,4 +89,6 @@ jobs:
         env:
           REACT_APP_API_BASE_URL: http://54.197.120.188:3001/ 
         working-directory: ./reactplay/reactplay
-        run: npm run build --if-present
+        run: |
+          echo "Verifying ENV VAR during build: REACT_APP_API_BASE_URL is $REACT_APP_API_BASE_URL"
+          npm run build --if-present
