@@ -147,14 +147,16 @@ jobs:
 
       # --- Backend Deployment ---
       - name: Deploy Backend Files to EC2
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         uses: easingthemes/ssh-deploy@v5.0.0
         with:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          ARGS: "-rlgoDzvc --delete --exclude 'node_modules' --exclude '.git'" # node_modulesと.gitを除外
-          SOURCE: "nodeplay/" # チェックアウトしたリポジトリのnodeplayディレクトリ
+          ARGS: "-rlgoDzvc --delete"  # ★汎用的なrsyncオプションのみにする
+          SOURCE: "nodeplay/"
           REMOTE_HOST: ${{ secrets.SSH_HOST }}
           REMOTE_USER: ${{ secrets.SSH_USERNAME }}
-          TARGET: /home/ec2-user/app/nodeplay # ★EC2上のバックエンド配置パス (要確認・修正)
+          TARGET: /home/ec2-user/app/nodeplay 
+          EXCLUDE: "/node_modules/, /.git/" # ★EXCLUDEパラメータで除外対象を指定
 
       # --- Remote Commands Execution ---
       - name: Execute Deployment Commands on EC2
