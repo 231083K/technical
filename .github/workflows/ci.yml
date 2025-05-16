@@ -158,7 +158,7 @@ jobs:
 
       # --- Remote Commands Execution ---
       - name: Execute Deployment Commands on EC2
-        uses: appleboy/ssh-action@v1.0.3 # 具体的なバージョンを指定
+        uses: appleboy/ssh-action@v1.0.3 
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
