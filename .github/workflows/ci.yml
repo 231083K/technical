@@ -110,3 +110,80 @@ jobs:
           else
             echo "ERROR: IP '54.197.120.188:3001' NOT found in $MAIN_JS_FILE!"
           fi
+
+      - name: Upload frontend build artifact
+        uses: actions/upload-artifact@v4 # v4 を推奨
+        with:
+          name: frontend-build # アーティファクト名 (deployジョブで参照)
+          path: reactplay/reactplay/build # アップロードするディレクトリ
+  
+  deploy:
+    name: Deploy to EC2
+    needs: build_and_test # build_and_test ジョブの成功後に実行
+    runs-on: ubuntu-latest
+    # main ブランチへの push イベントの場合のみ実行
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Checkout repository # バックエンドコードの同期にも必要
+        uses: actions/checkout@v4
+
+      - name: Download frontend build artifact
+        uses: actions/download-artifact@v4 # v4 を推奨
+        with:
+          name: frontend-build # build_and_test ジョブでアップロードした名前と一致させる
+          path: frontend-build-downloaded # ダウンロード先の一時ディレクトリ
+
+      # --- Frontend Deployment ---
+      - name: Deploy Frontend Files to EC2
+        uses: easingthemes/ssh-deploy@v5.0.0 # 具体的なバージョンを指定
+        with:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          ARGS: "-rlgoDzvc --delete" # rsyncオプション
+          SOURCE: "frontend-build-downloaded/" # ダウンロードしたアーティファクトのパス
+          REMOTE_HOST: ${{ secrets.SSH_HOST }}
+          REMOTE_USER: ${{ secrets.SSH_USERNAME }}
+          TARGET: /var/www/reactapp # ★EC2上のReact配置パス (要確認・修正)
+
+      # --- Backend Deployment ---
+      - name: Deploy Backend Files to EC2
+        uses: easingthemes/ssh-deploy@v5.0.0
+        with:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          ARGS: "-rlgoDzvc --delete --exclude 'node_modules' --exclude '.git'" # node_modulesと.gitを除外
+          SOURCE: "nodeplay/" # チェックアウトしたリポジトリのnodeplayディレクトリ
+          REMOTE_HOST: ${{ secrets.SSH_HOST }}
+          REMOTE_USER: ${{ secrets.SSH_USERNAME }}
+          TARGET: /home/ec2-user/app/nodeplay # ★EC2上のバックエンド配置パス (要確認・修正)
+
+      # --- Remote Commands Execution ---
+      - name: Execute Deployment Commands on EC2
+        uses: appleboy/ssh-action@v1.0.3 # 具体的なバージョンを指定
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            echo "Changing to backend directory..."
+            cd /home/ec2-user/app/nodeplay # ★EC2上のバックエンド配置パス (要確認・修正)
+            
+            echo "Installing/Updating production backend dependencies..."
+            # npmのパスが通っていない場合はフルパス指定や nvm/asdf の source が必要になることがあります
+            npm install --production --omit=dev # 開発用依存関係を除外
+            
+            echo "Running database migrations (if applicable)..."
+            # マイグレーションスクリプトがある場合は実行 (package.jsonに "migrate": "..." があると仮定)
+            # if [ -f package.json ] && grep -q '"migrate"' package.json; then
+            #   npm run migrate
+            # fi
+            
+            echo "Reloading/Restarting backend application via PM2..."
+            # ★PM2のプロセス名が 'nodeplay-backend' でない場合は修正
+            # プロセスが存在すればリロード、なければ起動する例
+            if pm2 list | grep -q 'nodeplay-backend'; then
+              pm2 reload nodeplay-backend || pm2 restart nodeplay-backend
+            else
+              # 実際の起動コマンドに合わせて修正 (例: pm2 start server.js --name nodeplay-backend)
+              pm2 start server.js --name nodeplay-backend 
+            fi
+            echo "Deployment script finished."
