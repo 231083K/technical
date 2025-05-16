@@ -4,7 +4,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node server.js",
-    "test": "jest"
+    "test": "echo \"No backend tests specified yet, skipping.\" && exit 0"
   },
   "author": "",
   "license": "ISC",
