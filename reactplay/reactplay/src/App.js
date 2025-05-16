@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import UserTable from './components/UserTable';
 import UserForm from './components/UserForm';
 
-const API_BASE_URL = 'http://localhost:3001'; 
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:3001';
 
 function App() {
   const [users, setUsers] = useState([]);
