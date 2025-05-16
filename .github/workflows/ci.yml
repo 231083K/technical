@@ -158,7 +158,6 @@ jobs:
           TARGET: /home/ec2-user/app/nodeplay 
           EXCLUDE: "/node_modules/, /.git/" 
 
-      # --- Remote Commands Execution ---
       - name: Execute Deployment Commands on EC2
         uses: appleboy/ssh-action@v1.0.3 
         with:
