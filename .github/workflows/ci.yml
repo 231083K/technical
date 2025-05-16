@@ -92,3 +92,21 @@ jobs:
         run: |
           echo "Verifying ENV VAR during build: REACT_APP_API_BASE_URL is $REACT_APP_API_BASE_URL"
           npm run build --if-present
+      
+      - name: Inspect built JS file # ★このステップを追加
+        working-directory: ./reactplay/reactplay/build/static/js
+        run: |
+          echo "Searching for API URLs in JS bundles..."
+          # main.[hash].js のようなファイル名を見つける
+          MAIN_JS_FILE=$(ls main.*.js)
+          echo "Main JS file is: $MAIN_JS_FILE"
+          if grep -q 'localhost:3001' $MAIN_JS_FILE; then
+            echo "WARNING: 'localhost:3001' FOUND in $MAIN_JS_FILE!"
+          else
+            echo "'localhost:3001' NOT found in $MAIN_JS_FILE."
+          fi
+          if grep -q '54.197.120.188:3001' $MAIN_JS_FILE; then
+            echo "SUCCESS: IP '54.197.120.188:3001' FOUND in $MAIN_JS_FILE."
+          else
+            echo "ERROR: IP '54.197.120.188:3001' NOT found in $MAIN_JS_FILE!"
+          fi
