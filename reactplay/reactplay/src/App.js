@@ -13,6 +13,7 @@ function App() {
   const fetchUsers = useCallback(async () => {
     setIsLoading(true);
     setError(null);
+    console.log("URL=", API_BASE_URL);
     try {
       const response = await fetch(`${API_BASE_URL}/sending_user`);
       if (!response.ok) {
@@ -38,7 +39,6 @@ function App() {
     setIsLoading(true);
     setError(null);
     try {
-      console.log("URL=", API_BASE_URL);
       const response = await fetch(`${API_BASE_URL}/insert_user`, {
         method: 'POST',
         headers: {
