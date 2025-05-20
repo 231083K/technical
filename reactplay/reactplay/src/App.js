@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import UserTable from './components/UserTable';
 import UserForm from './components/UserForm';
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:3001';
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:3001/';
 
 function App() {
   const [users, setUsers] = useState([]);
@@ -15,7 +15,7 @@ function App() {
     setError(null);
     console.log("URL=", API_BASE_URL);
     try {
-      const response = await fetch(`${API_BASE_URL}/sending_user`);
+      const response = await fetch(`${API_BASE_URL}sending_user`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -39,7 +39,7 @@ function App() {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_BASE_URL}/insert_user`, {
+      const response = await fetch(`${API_BASE_URL}insert_user`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -68,7 +68,7 @@ function App() {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_BASE_URL}/edit_user/${userId}`, {
+      const response = await fetch(`${API_BASE_URL}edit_user/${userId}`, {
         method: 'PUT', 
         headers: {
           'Content-Type': 'application/json', 
@@ -97,7 +97,7 @@ function App() {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_BASE_URL}/delete_user/${userId}`, {
+      const response = await fetch(`${API_BASE_URL}delete_user/${userId}`, {
         method: 'DELETE', 
       });
       if (!response.ok) {

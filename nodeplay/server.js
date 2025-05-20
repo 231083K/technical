@@ -6,7 +6,7 @@ const app = express();
 const port = process.env.PORT || 3001; 
 
 // PostgreSQL接続設定 (環境変数から読み込むのがベストプラクティス)
-const connectionString = process.env.DATABASE_URL || 'postgresql://nodeman:password@localhost:5432/nodeplay_default'; // 環境変数またはデフォルト値
+const connectionString = process.env.DATABASE_URL || 'postgresql://nodeman:password@localhost:5432/nodeplay'; // 環境変数またはデフォルト値
 
 const pool = new Pool({
   connectionString: connectionString,
