@@ -38,6 +38,7 @@ function App() {
     setIsLoading(true);
     setError(null);
     try {
+      console.log("URL=", API_BASE_URL);
       const response = await fetch(`${API_BASE_URL}/insert_user`, {
         method: 'POST',
         headers: {
