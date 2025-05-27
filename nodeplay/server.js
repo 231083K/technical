@@ -54,61 +54,84 @@ app.post('/insert_user', async (req, res) => {
   }
 });
 
-// PUT: ユーザー情報を編集 (パスパラメータからIDを取得)
-// 注意: 本来は req.body に更新データを含めるべきですが、今回はID処理のみ
 app.put('/edit_user/:id', async (req, res) => {
-  const { id } = req.params; // パスパラメータからIDを取得
-  // const { username, age, ... } = req.body; // 本来は更新データも受け取る
+  const { id } = req.params;
+  // リクエストボディから更新可能性のあるフィールドを取得
+  const { username, age, gender, birth, addr, phone, mail, password } = req.body;
 
-  if (!id) {
-    // このパス定義ではIDがないリクエストは基本来ないが念のため
-    return res.status(400).json({ error: 'User ID is required in the URL path' });
+  // 更新するフィールドと値を動的に構築
+  const fieldsToUpdate = [];
+  const values = [];
+  let queryParamIndex = 1;
+
+  if (username !== undefined) {
+    fieldsToUpdate.push(`username = $${queryParamIndex++}`);
+    values.push(username);
   }
-  try {
-    // IDを使ってDB操作を行う (例: ログ出力)
-    console.log(`Edit request received for user ID: ${id}`);
-
-    // --- 本来のDB更新処理の例 ---
-    // if (!username) { // 更新データがない場合の例
-    //   return res.status(400).json({ error: 'Update data is required in the request body.' });
-    // }
-    // const result = await pool.query(
-    //   'UPDATE users SET username = $1, age = $2 /*, 他のカラム...*/ WHERE id = $3 RETURNING *',
-    //   [username, age, id]
-    // );
-    // if (result.rowCount === 0) {
-    //   return res.status(404).json({ error: 'User not found' });
-    // }
-    // res.status(200).json(result.rows[0]);
-    // --- ここまで更新処理の例 ---
-
-    // 今回は更新処理がないので、成功メッセージのみ返す
-    res.status(200).json({ message: `Edit request for user ${id} processed (no actual update performed in this example).` });
-
-  } catch (err) {
-    console.error('Error processing edit request:', err);
-    res.status(500).json({ error: 'Server error' });
+  if (age !== undefined) {
+    fieldsToUpdate.push(`age = $${queryParamIndex++}`);
+    values.push(age === '' || age === null ? null : parseInt(age, 10));
   }
-});
-
-// DELETE: ユーザー情報を削除 (パスパラメータからIDを取得)
-app.delete('/delete_user/:id', async (req, res) => {
-  const { id } = req.params; // パスパラメータからIDを取得
-
-  if (!id) {
-    // このパス定義ではIDがないリクエストは基本来ないが念のため
-    return res.status(400).json({ error: 'User ID is required in the URL path' });
+  if (gender !== undefined) {
+    fieldsToUpdate.push(`gender = $${queryParamIndex++}`);
+    values.push(gender === '' ? null : gender);
   }
-  try {
-    const result = await pool.query('DELETE FROM users WHERE id = $1 RETURNING *', [id]);
-    if (result.rowCount === 0) {
-      return res.status(404).json({ error: 'User not found' });
+  if (birth !== undefined) {
+    fieldsToUpdate.push(`birth = $${queryParamIndex++}`);
+    values.push(birth === '' ? null : birth); // フロントエンドから YYYY-MM-DD形式で来ると想定
+  }
+  if (addr !== undefined) {
+    fieldsToUpdate.push(`addr = $${queryParamIndex++}`);
+    values.push(addr === '' ? null : addr);
+  }
+  if (phone !== undefined) {
+    fieldsToUpdate.push(`phone = $${queryParamIndex++}`);
+    values.push(phone === '' ? null : phone);
+  }
+  if (mail !== undefined) {
+    // メールアドレスのユニーク制約チェック (自分自身以外で重複がないか)
+    try {
+      const mailCheckResult = await pool.query('SELECT id FROM users WHERE mail = $1 AND id != $2', [mail, id]);
+      if (mailCheckResult.rows.length > 0) {
+        return res.status(409).json({ error: 'Mail address already in use by another user.' });
+      }
+    } catch (dbErr) {
+      console.error('Error checking mail uniqueness during update:', dbErr);
+      return res.status(500).json({ error: 'Database error during mail check' });
     }
-    console.log('User deleted:', result.rows[0]);
-    res.status(200).json({ message: `User ${id} deleted successfully.` }); // or res.status(204).send(); (No Content)
+    fieldsToUpdate.push(`mail = $${queryParamIndex++}`);
+    values.push(mail);
+  }
+  if (password && password.trim() !== '') { // パスワードが提供され、空文字でない場合のみ更新
+    // ★ 本番環境では必ずパスワードをハッシュ化してください ★
+    // 例: const hashedPassword = await bcrypt.hash(password, 10);
+    // fieldsToUpdate.push(`password = $${queryParamIndex++}`);
+    // values.push(hashedPassword);
+    fieldsToUpdate.push(`password = $${queryParamIndex++}`); // 今回は平文で保存 (非推奨)
+    values.push(password);
+  }
+
+  if (fieldsToUpdate.length === 0) {
+    return res.status(400).json({ error: 'No fields provided for update.' });
+  }
+
+  // WHERE句のIDを値の配列の最後に追加
+  values.push(id);
+
+  const setClause = fieldsToUpdate.join(', ');
+  const updateQuery = `UPDATE users SET ${setClause} WHERE id = $${queryParamIndex} RETURNING *`;
+
+  try {
+    const result = await pool.query(updateQuery, values);
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+    console.log('User updated:', result.rows[0]);
+    res.status(200).json(result.rows[0]); // 更新されたユーザー情報を返す
   } catch (err) {
-    console.error('Error deleting user:', err);
-    res.status(500).json({ error: 'Database error' });
+    console.error('Error updating user:', err);
+    // 他のDBエラー（例：型エラーなど）も考慮
+    res.status(500).json({ error: 'Database error while updating user.' });
   }
 });
 
