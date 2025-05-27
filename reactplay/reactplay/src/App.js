@@ -33,6 +33,7 @@ function App() {
         throw new Error(errorMsg);
       }
       const data = await response.json();
+      console.log("Fetched users data:", data);
       setUsers(data);
     } catch (e) {
       console.error("Failed to fetch users:", e);
