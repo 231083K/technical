@@ -3,26 +3,30 @@ import { render, screen } from '@testing-library/react';
 import { BrowserRouter as Router } from 'react-router-dom'; // または MemoryRouter
 import App from './App';
 
-test('renders user management heading', () => {
-  // AppコンポーネントをRouterでラップしてレンダリング
+// test('renders user management heading', () => { // 古いテスト名
+test('renders navigation links correctly', () => { // 新しいテスト名 (例)
   render(
     <Router>
       <App />
     </Router>
   );
-  // 実際のAppコンポーネントは<Layout>を経由してUserListPageを表示するので、
-  // "User Management"というテキストはUserListPage内にあるか、
-  // Layoutコンポーネントのナビゲーションバーにある可能性があります。
-  // テスト対象のテキストが存在するか確認してください。
-  // 例: ナビゲーションバーのテキストを探す場合
-  const navElement = screen.getByText(/User Management App/i); // Layoutコンポーネントのタイトルなど
-  expect(navElement).toBeInTheDocument();
 
-  // もしUserListPageのh1タイトルをテストしたい場合は、
-  // 初期表示でUserListPageが確実に表示されることを確認し、
-  // 非同期処理がある場合は waitFor などを使う必要があります。
-  // const headingElement = screen.getByText(/User Management/i); // UserListPageのh1
-  // expect(headingElement).toBeInTheDocument();
+  // オプション1: "My App" というサイトタイトル/リンクが存在するか確認
+  const siteTitleLink = screen.getByRole('link', { name: /My App/i });
+  expect(siteTitleLink).toBeInTheDocument();
+
+  // オプション2: "User Management" というナビゲーションリンクが存在するか確認
+  const userManagementNavLink = screen.getByRole('link', { name: /User Management/i });
+  expect(userManagementNavLink).toBeInTheDocument();
+
+  // オプション3: "Task Calendar" というナビゲーションリンクが存在するか確認
+  const taskCalendarNavLink = screen.getByRole('link', { name: /Task Calendar/i });
+  expect(taskCalendarNavLink).toBeInTheDocument();
+
+  // もし UserListPage の H1 要素をテストしたい場合は、
+  // 非同期処理 (fetchUsers) を考慮して waitFor を使う必要があるかもしれません。
+  // 例:
+  // const pageHeading = await screen.findByRole('heading', { name: /User Management/i, level: 1 });
+  // expect(pageHeading).toBeInTheDocument();
+  // この場合、テスト関数を async にする必要があります。
 });
-
-// 他のテストケースも同様にRouterでラップする必要があるかもしれません。
