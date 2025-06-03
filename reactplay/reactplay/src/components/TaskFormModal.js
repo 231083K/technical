@@ -1,15 +1,26 @@
+// src/components/TaskFormModal.js
 import React, { useState, useEffect } from 'react';
 
-function TaskFormModal({ isOpen, onClose, onSubmit, taskData, selectedDate, availableUsers, selectedUserIdForNewTask }) {
-  const initialFormState = {
-    title: '',
-    description: '',
-    due_date: '',
-    status: 'pending', // デフォルトステータス
-    user_id: selectedUserIdForNewTask || '', // 新規タスクの場合のデフォルトユーザーID
-  };
+// ★ initialFormState をコンポーネントの外に定数として定義
+const INITIAL_TASK_FORM_STATE = {
+  title: '',
+  description: '',
+  due_date: '',
+  status: 'pending',
+  user_id: '', // user_id の初期値は useEffect 内で props を元に設定する
+};
 
-  const [formData, setFormData] = useState(initialFormState);
+function TaskFormModal({ 
+  isOpen, 
+  onClose, 
+  onSubmit, 
+  taskData,                 // 編集対象のタスクデータ
+  selectedDate,             // カレンダーでクリックされた日付 (新規追加用)
+  availableUsers,           // ユーザー選択用ドロップダウンのリスト
+  selectedUserIdForNewTask  // 新規タスク作成時のデフォルトユーザーID
+}) {
+  // ★ 定数 INITIAL_TASK_FORM_STATE を初期値として使用
+  const [formData, setFormData] = useState(INITIAL_TASK_FORM_STATE);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -20,23 +31,24 @@ function TaskFormModal({ isOpen, onClose, onSubmit, taskData, selectedDate, avai
           description: taskData.description || '',
           due_date: taskData.due_date ? new Date(taskData.due_date).toISOString().split('T')[0] : '',
           status: taskData.status || 'pending',
-          user_id: taskData.user_id || '',
+          user_id: taskData.user_id || '', // 編集時は既存のuser_idを使用
         });
-      } else if (selectedDate) { // 新規追加モード (日付クリック時)
+      } else { // 新規追加モード
+        let defaultUserId = selectedUserIdForNewTask || '';
+        if (!defaultUserId && availableUsers && availableUsers.length > 0) {
+          defaultUserId = availableUsers[0].id.toString(); // availableUsers があれば最初のユーザーをデフォルトに
+        }
         setFormData({
-          ...initialFormState,
-          due_date: new Date(selectedDate).toISOString().split('T')[0],
-          user_id: selectedUserIdForNewTask || (availableUsers.length > 0 ? availableUsers[0].id : ''),
-        });
-      } else { // 新規追加モード (通常)
-         setFormData({
-          ...initialFormState,
-          user_id: selectedUserIdForNewTask || (availableUsers.length > 0 ? availableUsers[0].id : ''),
+          ...INITIAL_TASK_FORM_STATE, // ★ 定数を使用
+          due_date: selectedDate ? new Date(selectedDate).toISOString().split('T')[0] : '',
+          user_id: defaultUserId,
         });
       }
-      setError(''); // モーダルを開くときにエラーをクリア
+      setError(''); // モーダルを開くときにフォーム固有のエラーをクリア
     }
-  }, [isOpen, taskData, selectedDate, initialFormState, selectedUserIdForNewTask, availableUsers]);
+    // isEditing や initialData の代わりに、isOpen, taskData, selectedDate を依存関係にする
+  }, [isOpen, taskData, selectedDate, selectedUserIdForNewTask, availableUsers]); // ★ INITIAL_TASK_FORM_STATE は依存配列から削除 (安定した定数のため)
+
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -49,7 +61,7 @@ function TaskFormModal({ isOpen, onClose, onSubmit, taskData, selectedDate, avai
       setError('Title is required.');
       return;
     }
-    if (!formData.user_id) {
+    if (!formData.user_id) { // user_idが必須であることを確認
         setError('User must be selected for the task.');
         return;
     }
@@ -71,21 +83,25 @@ function TaskFormModal({ isOpen, onClose, onSubmit, taskData, selectedDate, avai
         </div>
         {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Title */}
           <div>
             <label htmlFor="title" className="block text-sm font-medium text-gray-700">Title <span className="text-red-500">*</span></label>
             <input type="text" name="title" id="title" value={formData.title} onChange={handleChange} required
                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
           </div>
+          {/* Description */}
           <div>
             <label htmlFor="description" className="block text-sm font-medium text-gray-700">Description</label>
             <textarea name="description" id="description" value={formData.description} onChange={handleChange} rows="3"
                       className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
           </div>
+          {/* Due Date */}
           <div>
             <label htmlFor="due_date" className="block text-sm font-medium text-gray-700">Due Date</label>
             <input type="date" name="due_date" id="due_date" value={formData.due_date} onChange={handleChange}
                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
           </div>
+          {/* Status */}
           <div>
             <label htmlFor="status" className="block text-sm font-medium text-gray-700">Status</label>
             <select name="status" id="status" value={formData.status} onChange={handleChange}
@@ -95,20 +111,27 @@ function TaskFormModal({ isOpen, onClose, onSubmit, taskData, selectedDate, avai
               <option value="completed">Completed</option>
             </select>
           </div>
-           {/* ユーザー選択 (特にタスク編集時や、管理者として複数ユーザーのタスクを追加する場合) */}
-           {/* 新規追加時で、特定のユーザーページから来た場合は pre-select されている想定 */}
-           {!taskData && availableUsers && availableUsers.length > 0 && ( // 新規追加の場合のみ表示、または編集時もuser_id変更可能にするなら常に表示
+          {/* Assign to User - 編集時は表示しない（または変更不可にする）か、ユーザー変更を許可する場合は別途考慮 */}
+          {(!taskData || taskData.user_id === undefined) && availableUsers && availableUsers.length > 0 && (
             <div>
-              <label htmlFor="user_id" className="block text-sm font-medium text-gray-700">Assign to User <span className="text-red-500">*</span></label>
-              <select name="user_id" id="user_id" value={formData.user_id} onChange={handleChange} required
+              <label htmlFor="user_id_task" className="block text-sm font-medium text-gray-700">Assign to User <span className="text-red-500">*</span></label>
+              <select name="user_id" id="user_id_task" value={formData.user_id} onChange={handleChange} required
                       className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                <option value="">Select User</option>
+                <option value="">-- Select User --</option>
                 {availableUsers.map(user => (
-                  <option key={user.id} value={user.id}>{user.username} (ID: {user.id})</option>
+                  <option key={user.id} value={user.id.toString()}>{user.username} (ID: {user.id})</option>
                 ))}
               </select>
             </div>
           )}
+           {taskData && taskData.user_id && ( // 編集時でuser_idがある場合は表示のみ（変更不可）
+            <div>
+                <p className="text-sm text-gray-500">Assigned to: User ID {taskData.user_id}</p>
+                {/* 隠しフィールドでuser_idを保持する */}
+                <input type="hidden" name="user_id" value={formData.user_id} />
+            </div>
+           )}
+
 
           <div className="flex justify-end space-x-2 pt-4">
             <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300">
