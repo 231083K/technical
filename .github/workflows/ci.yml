@@ -78,7 +78,21 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
         working-directory: ./reactplay/reactplay
-
+      
+      - name: Verify frontend dependencies installation
+        working-directory: ./reactplay/reactplay # フロントエンドのディレクトリ
+        run: |
+              echo "--- Verifying react-router-dom installation ---"
+              if [ -d "node_modules/react-router-dom" ]; then
+                echo "SUCCESS: react-router-dom directory found in node_modules."
+                ls -la node_modules/react-router-dom # 詳細も表示
+              else
+                echo "ERROR: react-router-dom directory NOT FOUND in node_modules."
+                echo "Listing top-level node_modules contents:"
+                ls -la node_modules | head -n 20 # node_modules直下の一部を表示
+                exit 1 # モジュールがなければここで失敗させる
+              fi
+              echo "--- Verification done ---"
       - name: Run frontend tests
         env:
           CI: true 

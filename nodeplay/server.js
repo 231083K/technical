@@ -152,3 +152,122 @@ app.listen(port, () => {
     });
   });
 });
+
+// 特定ユーザーの全タスクを取得 (GET /users/:userId/tasks)
+app.get('/users/:userId/tasks', async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const result = await pool.query('SELECT * FROM tasks WHERE user_id = $1 ORDER BY due_date ASC, created_at ASC', [userId]);
+    res.status(200).json(result.rows);
+  } catch (err) {
+    console.error('Error fetching tasks for user:', err);
+    res.status(500).json({ error: 'Failed to fetch tasks' });
+  }
+});
+
+// 新しいタスクを作成 (POST /users/:userId/tasks)
+app.post('/users/:userId/tasks', async (req, res) => {
+  const { userId } = req.params;
+  const { title, description, due_date, status } = req.body;
+
+  if (!title || !userId) {
+    return res.status(400).json({ error: 'User ID and Title are required' });
+  }
+
+  try {
+    const result = await pool.query(
+      'INSERT INTO tasks (user_id, title, description, due_date, status) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [userId, title, description || null, due_date || null, status || 'pending']
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error('Error creating task:', err);
+    res.status(500).json({ error: 'Failed to create task' });
+  }
+});
+
+// 特定のタスクを取得 (GET /tasks/:taskId) - 必要に応じて
+app.get('/tasks/:taskId', async (req, res) => {
+  const { taskId } = req.params;
+  try {
+    const result = await pool.query('SELECT * FROM tasks WHERE id = $1', [taskId]);
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+    res.status(200).json(result.rows[0]);
+  } catch (err) {
+    console.error('Error fetching task:', err);
+    res.status(500).json({ error: 'Failed to fetch task' });
+  }
+});
+
+
+// タスクを更新 (PUT /tasks/:taskId)
+app.put('/tasks/:taskId', async (req, res) => {
+  const { taskId } = req.params;
+  const { title, description, due_date, status, user_id } = req.body; // user_idも更新可能にするか検討
+
+  // 更新するフィールドと値を動的に構築
+  const fieldsToUpdate = [];
+  const values = [];
+  let queryParamIndex = 1;
+
+  if (title !== undefined) {
+    fieldsToUpdate.push(`title = $${queryParamIndex++}`);
+    values.push(title);
+  }
+  if (description !== undefined) {
+    fieldsToUpdate.push(`description = $${queryParamIndex++}`);
+    values.push(description);
+  }
+  if (due_date !== undefined) {
+    fieldsToUpdate.push(`due_date = $${queryParamIndex++}`);
+    values.push(due_date === '' ? null : due_date);
+  }
+  if (status !== undefined) {
+    fieldsToUpdate.push(`status = $${queryParamIndex++}`);
+    values.push(status);
+  }
+  // もしuser_idを変更可能にする場合は追加
+  // if (user_id !== undefined) {
+  //   fieldsToUpdate.push(`user_id = $${queryParamIndex++}`);
+  //   values.push(user_id);
+  // }
+
+
+  if (fieldsToUpdate.length === 0) {
+    return res.status(400).json({ error: 'No fields provided for update.' });
+  }
+
+  values.push(taskId); // WHERE句のtaskId用
+
+  const setClause = fieldsToUpdate.join(', ');
+  // updated_at はトリガーで自動更新される想定だが、明示的に更新しても良い
+  const updateQuery = `UPDATE tasks SET ${setClause}, updated_at = CURRENT_TIMESTAMP WHERE id = $${queryParamIndex} RETURNING *`;
+
+  try {
+    const result = await pool.query(updateQuery, values);
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Task not found or no changes made' });
+    }
+    res.status(200).json(result.rows[0]);
+  } catch (err) {
+    console.error('Error updating task:', err);
+    res.status(500).json({ error: 'Failed to update task' });
+  }
+});
+
+// タスクを削除 (DELETE /tasks/:taskId)
+app.delete('/tasks/:taskId', async (req, res) => {
+  const { taskId } = req.params;
+  try {
+    const result = await pool.query('DELETE FROM tasks WHERE id = $1 RETURNING *', [taskId]);
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+    res.status(200).json({ message: 'Task deleted successfully', deletedTask: result.rows[0] });
+  } catch (err) {
+    console.error('Error deleting task:', err);
+    res.status(500).json({ error: 'Failed to delete task' });
+  }
+});
