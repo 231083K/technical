@@ -122,7 +122,7 @@ function UserListPage() {
   };
 
   const handleDeleteUser = async (userId) => {
-    if (window.confirm(`Are you sure you want to delete user ID: ${userId}?`)) {
+    if (window.confirm(`このユーザを削除しますか？ :${userId}?`)) {
       setIsLoading(true);
       setError(null);
       try {

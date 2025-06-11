@@ -27,10 +27,10 @@ function UserTable({ users, onEdit, onDelete }) {
               <td className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">{user.username}</td>
               <td className="px-6 py-4">{user.age || '-'}</td>
               <td className="px-6 py-4">{user.gender || '-'}</td>
-              <td className="px-6 py-4">{user.birth ? new Date(user.birth).toLocaleDateString() : '-'}</td>
+              <td className="px-6 py-4">{user.birth_date ? new Date(user.birth_date).toLocaleDateString() : '-'}</td>
               <td className="px-6 py-4">{user.addr || '-'}</td>
               <td className="px-6 py-4">{user.phone || '-'}</td>
-              <td className="px-6 py-4">{user.mail}</td>
+              <td className="px-6 py-4">{user.email}</td>
               <td className="px-6 py-4">{user.password}</td>
               <td className="px-6 py-4 text-right whitespace-nowrap">
                 <button
