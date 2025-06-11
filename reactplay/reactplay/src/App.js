@@ -11,7 +11,7 @@ function Layout() {
     <div>
       <nav className="bg-gray-800 text-white p-4 mb-6 shadow-md">
         <div className="container mx-auto flex justify-between items-center">
-          <Link to="/" className="text-xl font-semibold hover:text-gray-300">My App</Link>
+          <Link to="/" className="text-xl font-semibold hover:text-gray-300">技術研究システム</Link>
           <div>
             <Link to="/" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-700">User Management</Link>
             <Link to="/tasks" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-700">Task Calendar</Link>
@@ -31,12 +31,9 @@ function Layout() {
 function App() {
   return (
     <Routes>
-      <Route path="/" element={<Layout />}> {/* Layoutコンポーネントを共通の親とする */}
-        <Route index element={<UserListPage />} /> {/* ルートパス ("/") で UserListPage を表示 */}
-        <Route path="tasks" element={<TaskCalendarPage />} /> {/* "/tasks" パスで TaskCalendarPage を表示 */}
-        {/* 他のページへのルートもここに追加可能 */}
-        {/* 例: <Route path="profile" element={<ProfilePage />} /> */}
-        {/* <Route path="*" element={<NotFoundPage />} />  // どのルートにも一致しない場合の404ページ */}
+      <Route path="/" element={<Layout />}> 
+        <Route index element={<UserListPage />} /> 
+        <Route path="tasks" element={<TaskCalendarPage />} /> 
       </Route>
     </Routes>
   );

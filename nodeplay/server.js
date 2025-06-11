@@ -102,12 +102,11 @@ app.put('/edit_user/:id', async (req, res) => {
     fieldsToUpdate.push(`mail = $${queryParamIndex++}`);
     values.push(mail);
   }
-  if (password && password.trim() !== '') { // パスワードが提供され、空文字でない場合のみ更新
-    // ★ 本番環境では必ずパスワードをハッシュ化してください ★
+  if (password && password.trim() !== '') { 
     // 例: const hashedPassword = await bcrypt.hash(password, 10);
     // fieldsToUpdate.push(`password = $${queryParamIndex++}`);
     // values.push(hashedPassword);
-    fieldsToUpdate.push(`password = $${queryParamIndex++}`); // 今回は平文で保存 (非推奨)
+    fieldsToUpdate.push(`password = $${queryParamIndex++}`); 
     values.push(password);
   }
 

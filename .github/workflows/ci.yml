@@ -1,5 +1,3 @@
-# .github/workflows/ci.yml
-
 name: CI Pipeline for Node.js and React App
 
 on:
@@ -12,193 +10,118 @@ jobs:
   build_and_test:
     name: Build and Test
     runs-on: ubuntu-latest
-
-    # PostgreSQL サービスコンテナを起動 (バックエンドテスト用)
     services:
       postgres:
-        image: postgres:14 
+        image: postgres:14
         env:
-          POSTGRES_USER: nodeman      # テスト用ユーザー名 (任意)
-          POSTGRES_PASSWORD: password # テスト用パスワード (任意)
-          POSTGRES_DB: nodeplay  # テスト用データベース名 (任意)
+          POSTGRES_USER: nodeman
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: nodeplay
         ports:
-          - 5432:5432 
+          - 5432:5432
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-
     strategy:
       matrix:
-        node-version: ['23.11.0'] # テストするNode.jsバージョン (必要に応じて変更・追加)
+        node-version: ['23.11.0']
 
     steps:
-      # 1. リポジトリのコードをチェックアウト
       - name: Checkout repository
         uses: actions/checkout@v4
-      # 2. Node.jsのセットアップ
+
       - name: Set up Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          # cache: 'npm' 
 
-      # --- Backend Steps (nodeplay) ---
-      - name: Install backend dependencies
-        uses: actions/setup-node@v4 
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: 'npm'
-          cache-dependency-path: nodeplay/package-lock.json # バックエンドのロックファイルパス
-      
       - name: Install backend dependencies
         run: npm ci
         working-directory: ./nodeplay
 
       - name: Run backend tests
         env:
-          PGHOST: localhost # PostgreSQLサービスのホスト名
+          PGHOST: localhost
           PGPORT: 5432
           PGUSER: nodeman
           PGDATABASE: nodeplay
           PGPASSWORD: password
           NODE_ENV: test
         working-directory: ./nodeplay
-        run: npm test --if-present # testスクリプト
-
-      # --- Frontend Steps (reactplay/reactplay) ---
-      - name: Install frontend dependencies
-        uses: actions/setup-node@v4 
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: 'npm'
-          cache-dependency-path: reactplay/reactplay/package-lock.json # フロントエンドのロックファイルパス
+        run: npm test --if-present
 
       - name: Install frontend dependencies
         run: npm ci
         working-directory: ./reactplay/reactplay
       
-      - name: Verify frontend dependencies installation
-        working-directory: ./reactplay/reactplay # フロントエンドのディレクトリ
-        run: |
-              echo "--- Verifying react-router-dom installation ---"
-              if [ -d "node_modules/react-router-dom" ]; then
-                echo "SUCCESS: react-router-dom directory found in node_modules."
-                ls -la node_modules/react-router-dom # 詳細も表示
-              else
-                echo "ERROR: react-router-dom directory NOT FOUND in node_modules."
-                echo "Listing top-level node_modules contents:"
-                ls -la node_modules | head -n 20 # node_modules直下の一部を表示
-                exit 1 # モジュールがなければここで失敗させる
-              fi
-              echo "--- Verification done ---"
       - name: Run frontend tests
         env:
-          CI: true 
+          CI: true
         working-directory: ./reactplay/reactplay
         run: npm test --if-present
 
       - name: Build frontend
         env:
-          REACT_APP_API_BASE_URL: http://54.197.120.188:3001/ 
+          REACT_APP_API_BASE_URL: http://54.197.120.188:3001/
         working-directory: ./reactplay/reactplay
-        run: |
-          echo "Verifying ENV VAR during build: REACT_APP_API_BASE_URL is $REACT_APP_API_BASE_URL"
-          npm run build --if-present
+        run: npm run build --if-present
       
-      - name: Inspect built JS file # ★このステップを追加
-        working-directory: ./reactplay/reactplay/build/static/js
-        run: |
-          echo "Searching for API URLs in JS bundles..."
-          # main.[hash].js のようなファイル名を見つける
-          MAIN_JS_FILE=$(ls main.*.js)
-          echo "Main JS file is: $MAIN_JS_FILE"
-          if grep -q 'localhost:3001' $MAIN_JS_FILE; then
-            echo "WARNING: 'localhost:3001' FOUND in $MAIN_JS_FILE!"
-          else
-            echo "'localhost:3001' NOT found in $MAIN_JS_FILE."
-          fi
-          if grep -q '54.197.120.188:3001' $MAIN_JS_FILE; then
-            echo "SUCCESS: IP '54.197.120.188:3001' FOUND in $MAIN_JS_FILE."
-          else
-            echo "ERROR: IP '54.197.120.188:3001' NOT found in $MAIN_JS_FILE!"
-          fi
-
       - name: Upload frontend build artifact
-        uses: actions/upload-artifact@v4 # v4 を推奨
+        uses: actions/upload-artifact@v4
         with:
-          name: frontend-build # アーティファクト名 (deployジョブで参照)
-          path: reactplay/reactplay/build # アップロードするディレクトリ
-  
+          name: frontend-build
+          path: reactplay/reactplay/build
+
   deploy:
     name: Deploy to EC2
-    needs: build_and_test # build_and_test ジョブの成功後に実行
+    needs: build_and_test
     runs-on: ubuntu-latest
-    # main ブランチへの push イベントの場合のみ実行
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:
-      - name: Checkout repository # バックエンドコードの同期にも必要
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Download frontend build artifact
-        uses: actions/download-artifact@v4 # v4 を推奨
+        uses: actions/download-artifact@v4
         with:
-          name: frontend-build # build_and_test ジョブでアップロードした名前と一致させる
-          path: frontend-build-downloaded # ダウンロード先の一時ディレクトリ
+          name: frontend-build
+          path: frontend-build-downloaded
 
-      # --- Frontend Deployment ---
       - name: Deploy Frontend Files to EC2
-        uses: easingthemes/ssh-deploy@v5.0.0 
-        with:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          ARGS: "-rlgoDzvc --delete" 
-          SOURCE: "frontend-build-downloaded/" # ダウンロードしたアーティファクトのパス
-          REMOTE_HOST: ${{ secrets.SSH_HOST }}
-          REMOTE_USER: ${{ secrets.SSH_USERNAME }}
-          TARGET: /var/www/reactapp # ★EC2上のReact配置パス (要確認・修正)
-
-      # --- Backend Deployment ---
-      - name: Deploy Backend Files to EC2
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         uses: easingthemes/ssh-deploy@v5.0.0
         with:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          ARGS: "-rlgoDzvc --delete"  
+          ARGS: "-rlgoDzvc --delete"
+          SOURCE: "frontend-build-downloaded/"
+          REMOTE_HOST: ${{ secrets.SSH_HOST }}
+          REMOTE_USER: ${{ secrets.SSH_USERNAME }}
+          TARGET: /var/www/reactapp
+
+      - name: Deploy Backend Files to EC2
+        uses: easingthemes/ssh-deploy@v5.0.0
+        with:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          ARGS: "-rlgoDzvc --delete"
           SOURCE: "nodeplay/"
           REMOTE_HOST: ${{ secrets.SSH_HOST }}
           REMOTE_USER: ${{ secrets.SSH_USERNAME }}
-          TARGET: /home/ec2-user/app/nodeplay 
-          EXCLUDE: "/node_modules/, /.git/" 
+          TARGET: /home/ec2-user/app/nodeplay
+          EXCLUDE: "/node_modules/, /.git/"
 
       - name: Execute Deployment Commands on EC2
-        uses: appleboy/ssh-action@v1.0.3 
+        uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            echo "Changing to backend directory..."
-            cd /home/ec2-user/app/nodeplay # ★EC2上のバックエンド配置パス (要確認・修正)
-            
-            echo "Installing/Updating production backend dependencies..."
-            # npmのパスが通っていない場合はフルパス指定や nvm/asdf の source が必要になることがあります
-            npm install --production --omit=dev # 開発用依存関係を除外
-            
-            echo "Running database migrations (if applicable)..."
-            # マイグレーションスクリプトがある場合は実行 (package.jsonに "migrate": "..." があると仮定)
-            # if [ -f package.json ] && grep -q '"migrate"' package.json; then
-            #   npm run migrate
-            # fi
-            
-            echo "Reloading/Restarting backend application via PM2..."
-            # ★PM2のプロセス名が 'nodeplay-backend' でない場合は修正
-            # プロセスが存在すればリロード、なければ起動する例
+            cd /home/ec2-user/app/nodeplay
+            npm install --production --omit=dev
             if pm2 list | grep -q 'nodeplay-backend'; then
               pm2 reload nodeplay-backend || pm2 restart nodeplay-backend
             else
-              # 実際の起動コマンドに合わせて修正 (例: pm2 start server.js --name nodeplay-backend)
-              pm2 start server.js --name nodeplay-backend 
+              pm2 start server.js --name nodeplay-backend
             fi
-            echo "Deployment script finished."
