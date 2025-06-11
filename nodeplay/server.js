@@ -270,3 +270,21 @@ app.delete('/tasks/:taskId', async (req, res) => {
     res.status(500).json({ error: 'Failed to delete task' });
   }
 });
+
+app.delete('/delete_user/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query('DELETE FROM users WHERE id = $1 RETURNING *', [id]);
+
+    if (result.rowCount === 0) {
+      // 削除対象の行が見つからなかった場合 (rowCountが0)、404を返す
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    // 削除に成功した場合
+    console.log('User deleted:', result.rows[0]);
+    res.status(200).json({ message: `User ${id} deleted successfully.` });
+  } catch (err) {
+    // ...
+  }
+});
