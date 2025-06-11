@@ -12,7 +12,7 @@ test('renders navigation links correctly', () => { // 新しいテスト名 (例
   );
 
   // オプション1: "My App" というサイトタイトル/リンクが存在するか確認
-  const siteTitleLink = screen.getByRole('link', { name: /My App/i });
+  const siteTitleLink = screen.getByRole('link', { name: /技術研究システム/i });
   expect(siteTitleLink).toBeInTheDocument();
 
   // オプション2: "User Management" というナビゲーションリンクが存在するか確認
